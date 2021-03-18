@@ -1,0 +1,14 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+nifty-gridder = {editable = true, path = "./../nifty_gridder"}
+python-casacore = "*"
+numpy = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.8"

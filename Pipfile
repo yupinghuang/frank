@@ -11,6 +11,9 @@ ipykernel = "*"
 pytest = "*"
 matplotlib = "*"
 scipy = "*"
+install = "*"
+xarray = {extras = ["complete"], version = "*"}
+dask-ms = {extras = ["xarray"], version = "*"}
 
 [dev-packages]
 

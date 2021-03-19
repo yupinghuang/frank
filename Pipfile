@@ -7,6 +7,10 @@ name = "pypi"
 nifty-gridder = {editable = true, path = "./../nifty_gridder"}
 python-casacore = "*"
 numpy = "*"
+ipykernel = "*"
+pytest = "*"
+matplotlib = "*"
+scipy = "*"
 
 [dev-packages]
 

@@ -14,6 +14,7 @@ scipy = "*"
 install = "*"
 xarray = {extras = ["complete"], version = "*"}
 dask-ms = {extras = ["xarray"], version = "*"}
+ipympl = "*"
 
 [dev-packages]
 

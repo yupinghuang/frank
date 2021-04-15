@@ -172,6 +172,7 @@ def main(proxyname):
     print("nr_correlations       = ", nr_correlations)
     print("subgrid_size          = ", subgrid_size)
     print("grid_size             = ", grid_size)
+    print("cell_size             = ", cell_size)
     print("image_size            = ", image_size)
     print("kernel_size           = ", kernel_size)
     print("integration_time      = ", integration_time)

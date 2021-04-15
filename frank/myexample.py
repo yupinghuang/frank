@@ -5,12 +5,20 @@ import logging
 import idg.util as util
 import idg
 
+MAX_UV_M = 14000
+GRID_PADDING = 1.4
+SPEED_OF_LIGHT = 299792458.0
+
 logging.basicConfig(
     filename='myexample.log',
     level=logging.INFO,
     format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
 )
+
+def compute_image_size(grid_size, freq):
+    half_grid_size = grid_size / (2* GRID_PADDING)
+    return half_grid_size / MAX_UV_M * (SPEED_OF_LIGHT / freq)    
 
 def gridding(
         p, w_step, shift, cell_size, kernel_size, subgrid_size, frequencies, visibilities,
@@ -21,13 +29,13 @@ def gridding(
     # p.get_grid(grid)
     logging.info('End gridding.')
     p.transform(idg.FourierDomainToImageDomain)
-    p.get_grid(grid)
+    p.get_final_grid(grid)
     print(grid.shape)
     np.save('/fastpool/data/grid_post_fft.npy', grid)
 
 
 def main():
-    nr_channels = 1
+    nr_channels = 30
     nr_timesteps = 600
 
     with table('/fastpool/data/20210226M-2GHz-1chan-600int.ms') as t:
@@ -41,12 +49,16 @@ def main():
         ant2 = t.getcol('ANTENNA2', nrow=nr_baselines)
         uvw_orig = t.getcol('UVW', nrow=nr_baselines*nr_timesteps)
 
+    print(f'max uvw length is ',
+            np.max(np.sqrt(uvw_orig[:,0]**2 + uvw_orig[:,1]**2 + uvw_orig[:,2]**2)))
     nr_timeslots = 1
     nr_correlations = 4
-    grid_size = 16000
-    image_size = 0.08
-    subgrid_size = 24
-    kernel_size = 13
+    grid_size = 8000
+    # image_size = 0.08
+    image_size = compute_image_size(grid_size, frequencies.max())
+    print('Image size is ', image_size)
+    subgrid_size = 32
+    kernel_size = 22
     cell_size = image_size / grid_size
 
     uvw_orig = uvw_orig.reshape((nr_timesteps, nr_baselines, 3))
@@ -73,7 +85,8 @@ def main():
     shift = np.zeros(3, dtype=np.float32)
     w_step = 0.0
 
-    p = idg.CUDA.Unified()
+    # p = idg.CUDA.Unified()
+    p = idg.HybridCUDA.GenericOptimized()
 
     spheroidal     = util.get_example_spheroidal(subgrid_size)
     aterms         = util.get_identity_aterms(

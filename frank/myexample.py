@@ -5,7 +5,7 @@ import logging
 import idg.util as util
 import idg
 
-MAX_UV_M = 14000
+MAX_UV_M = 15030.
 GRID_PADDING = 1.4
 SPEED_OF_LIGHT = 299792458.0
 
@@ -35,7 +35,7 @@ def gridding(
 
 
 def main():
-    nr_channels = 30
+    nr_channels = 1
     nr_timesteps = 600
 
     with table('/fastpool/data/20210226M-2GHz-1chan-600int.ms') as t:
@@ -53,7 +53,7 @@ def main():
             np.max(np.sqrt(uvw_orig[:,0]**2 + uvw_orig[:,1]**2 + uvw_orig[:,2]**2)))
     nr_timeslots = 1
     nr_correlations = 4
-    grid_size = 8000
+    grid_size = 8192
     # image_size = 0.08
     image_size = compute_image_size(grid_size, frequencies.max())
     print('Image size is ', image_size)

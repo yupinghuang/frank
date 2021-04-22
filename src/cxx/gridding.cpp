@@ -4,6 +4,10 @@
 #include "idg-util.h" // Don't need if not using the test Data class
 #include "idg-common.h"
 
+#include <casacore/casa/Arrays/Array.h>
+#include <casacore/tables/Tables/ArrayColumn.h>
+#include <casacore/ms/MeasurementSets/MeasurementSet.h>
+
 #include <iostream>
 #include <iomanip>
 #include <cstdlib>  // size_t
@@ -28,10 +32,6 @@ void grid() {
     /*
      * Call this from python?
      */
-}
-
-int main (int argc, char *argv[]) {
-
     // parameters
     unsigned int nr_correlations = 4;
     unsigned int nr_stations = 9;
@@ -93,8 +93,16 @@ int main (int argc, char *argv[]) {
 
     std::clog << ">>> Run gridding" << std::endl;
     proxy.gridding(*plan, frequencies, visibilities, uvw, baselines, aterms,
-                    aterms_offsets, spheroidal);
+                   aterms_offsets, spheroidal);
     proxy.get_final_grid();
     // result is at grid->data()
     // TODO: remove taper
+}
+
+int main (int argc, char *argv[]) {
+    string ms_path = "/fastpool/data/20210226M-700MHz-1chan-600int.ms";
+    auto ms = casacore::MeasurementSet(ms_path);
+    casacore::ArrayColumn<casacore::Complex> data_column(
+            ms, casacore::MS::columnName(casacore::MSMainEnums::DATA));
+    std::clog << data_column.shape(0) << std::endl;
 }

@@ -46,20 +46,20 @@ int main (int argc, char *argv[]) {
     casacore::ScalarColumn<int> ant2(
             ms, casacore::MS::columnName(casacore::MSMainEnums::ANTENNA2));
 
-    unsigned int nr_correlations = 4;
-    unsigned int nr_rows = data_column.nrow();
-    unsigned int nr_stations = ms.antenna().nrow();
-    unsigned int nr_baselines = (nr_stations * (nr_stations - 1)) / 2;
+    const unsigned int nr_correlations = 4;
+    const unsigned int nr_rows = data_column.nrow();
+    const unsigned int nr_stations = ms.antenna().nrow();
+    const unsigned int nr_baselines = (nr_stations * (nr_stations - 1)) / 2;
     if (nr_rows % nr_baselines != 0 )
         throw std::length_error("Data column should be divisible by nr_correlations.");
-    size_t nr_timesteps = nr_rows / nr_baselines;
+    const unsigned int nr_timesteps = nr_rows / nr_baselines;
 
     std::clog << "nr_baselines = " << nr_baselines << std::endl;
     std::clog << "nr_rows = " << nr_rows << std::endl;
     std::clog << "nr_stations = " << nr_stations << std::endl;
     std::clog << "nr_timesteps = " << nr_timesteps << std::endl;
 
-    float integration_time = 1.5f;
+    const float integration_time = 1.5f;
 
     casacore::ROScalarColumn<int> numChanCol(ms.spectralWindow(), casacore::MSSpectralWindow::columnName(
                       casacore::MSSpectralWindowEnums::NUM_CHAN));
@@ -67,9 +67,9 @@ int main (int argc, char *argv[]) {
     numChanCol.get(0, nr_channels);
     std::clog << "nr_channels = " << nr_channels << std::endl;
 
-    unsigned int nr_timeslots = 1; // timeslot for a-term
-    unsigned int subgrid_size = 32;
-    unsigned int kernel_size = 13;
+    const unsigned int nr_timeslots = 1; // timeslot for a-term
+    const unsigned int subgrid_size = 32;
+    const unsigned int kernel_size = 13;
 
 
     // hard-coding for now
@@ -101,28 +101,41 @@ int main (int argc, char *argv[]) {
     proxy.set_grid(grid);
 
     auto start = std::chrono::high_resolution_clock::now();
+    std::chrono::_V2::system_clock::time_point stop;
+    std::chrono::seconds duration;
 
     std::clog << "Reading measurement set." << std::endl;
 
-    // Read and reorder data
-    for (unsigned int bl=0; bl < nr_baselines; ++bl) {
-        // read between bl and bl + nr_baselines for each timestep
-        casacore::Array<std::complex<float>> row = data_column.get(bl + t * nr_baselines);
-            for (unsigned int t=0; t < nr_timesteps; ++t) {
-                for (unsigned int chan=0; chan < nr_channels; ++chan) {
-                    casacore::IPosition xx(2, chan, 0);
-                    casacore::IPosition xy(2, chan, 1);
-                    casacore::IPosition yx(2, chan, 2);
-                    casacore::IPosition yy(2, chan, 3);
-                    idg::Matrix2x2<std::complex<float>> vis = {row(xx), row(xy), row(yx), row(yy)};
-                    visibilities(bl, t, chan) = vis;
-                }
-            }
-    }
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::seconds>(stop - start);
+    /**
+     * TODO store data on disk in different order.
+     * I tried a few simple things: reading all baselines for given timestep then reorder;
+     * reading one row at a time then reorder.
+     * casacore doesn't seem to like it within omp parallel.
+    **/
+
+    const casacore::Array<std::complex<float>> rows = data_column.getColumn();
+    stop = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::seconds>(stop - start);
+    start = std::chrono::high_resolution_clock::now();
     std::clog << "Done reading measurement set in " << duration.count() << "s" << std::endl;
-    return 0;
+
+    #pragma omp parallel for default(none) shared(visibilities, nr_channels)
+    for (unsigned int bl=0; bl < nr_baselines; ++bl) {
+        for (unsigned int t=0; t < nr_timesteps; ++t) {
+            for (unsigned int chan=0; chan < nr_channels; ++chan) {
+                unsigned row_nr = bl + t * nr_baselines;
+                casacore::IPosition xx(3, chan, 0, row_nr);
+                casacore::IPosition xy(3, chan, 1, row_nr);
+                casacore::IPosition yx(3, chan, 2, row_nr);
+                casacore::IPosition yy(3, chan, 3, row_nr);
+                idg::Matrix2x2<std::complex<float>> vis = {rows(xx), rows(xy), rows(yx), rows(yy)};
+                visibilities(bl, t, chan) = vis;
+            }
+        }
+    }
+    stop = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::seconds>(stop - start);
+    std::clog << "Reordered visibilities in " << duration.count() << "s" << std::endl;
 
     // not using w_step
     proxy.init_cache(subgrid_size, cell_size, 0.0, shift);

@@ -105,21 +105,19 @@ int main (int argc, char *argv[]) {
     std::clog << "Reading measurement set." << std::endl;
 
     // Read and reorder data
-
     for (unsigned int bl=0; bl < nr_baselines; ++bl) {
+        // read between bl and bl + nr_baselines for each timestep
+        casacore::Array<std::complex<float>> row = data_column.get(bl + t * nr_baselines);
             for (unsigned int t=0; t < nr_timesteps; ++t) {
-                    casacore::Array<std::complex<float>> row = data_column.get(bl + t * nr_baselines);
-                    for (unsigned int chan=0; chan < nr_channels; ++chan) {
-                            casacore::IPosition xx(2, chan, 0);
-                            casacore::IPosition xy(2, chan, 1);
-                            casacore::IPosition yx(2, chan, 2);
-                            casacore::IPosition yy(2, chan, 3);
-                            idg::Matrix2x2<std::complex<float>> vis = {row(xx), row(xy), row(yx), row(yy)};
-                            visibilities(bl, t, chan) = vis;
-                    }
-
+                for (unsigned int chan=0; chan < nr_channels; ++chan) {
+                    casacore::IPosition xx(2, chan, 0);
+                    casacore::IPosition xy(2, chan, 1);
+                    casacore::IPosition yx(2, chan, 2);
+                    casacore::IPosition yy(2, chan, 3);
+                    idg::Matrix2x2<std::complex<float>> vis = {row(xx), row(xy), row(yx), row(yy)};
+                    visibilities(bl, t, chan) = vis;
+                }
             }
-        
     }
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::seconds>(stop - start);

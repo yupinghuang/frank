@@ -37,13 +37,13 @@ void read_from_ms(idg::UVW<float>& uvw, idg::Array1D<float>& freqs,
 int main (int argc, char *argv[]) {
     string ms_path = "/fastpool/data/20210226M-2GHz-1chan-600int.ms";
     casacore::MeasurementSet ms(ms_path);
-    casacore::ArrayColumn<casacore::Complex> data_column(
+    casacore::ROArrayColumn<casacore::Complex> data_column(
             ms, casacore::MS::columnName(casacore::MSMainEnums::DATA));
-    casacore::ArrayColumn<double> uvw_column(
+    casacore::ROArrayColumn<double> uvw_column(
             ms, casacore::MS::columnName(casacore::MSMainEnums::UVW));
-    casacore::ScalarColumn<int> ant1(
+    casacore::ROScalarColumn<int> ant1(
             ms, casacore::MS::columnName(casacore::MSMainEnums::ANTENNA1));
-    casacore::ScalarColumn<int> ant2(
+    casacore::ROScalarColumn<int> ant2(
             ms, casacore::MS::columnName(casacore::MSMainEnums::ANTENNA2));
 
     const unsigned int nr_correlations = 4;
@@ -63,10 +63,14 @@ int main (int argc, char *argv[]) {
 
     casacore::ROScalarColumn<int> numChanCol(ms.spectralWindow(), casacore::MSSpectralWindow::columnName(
                       casacore::MSSpectralWindowEnums::NUM_CHAN));
+    casacore::ROArrayColumn<double> freqs(ms.spectralWindow(), casacore::MSSpectralWindow::columnName(
+                    casacore::MSSpectralWindowEnums::CHAN_FREQ));
     int nr_channels;
     numChanCol.get(0, nr_channels);
     std::clog << "nr_channels = " << nr_channels << std::endl;
-
+    std::clog << "freqs.nrow() = " << freqs.nrow() << std::endl;
+    std::clog << "freqs row 0 shape = " << freqs.shape(0) << std::endl;
+    return 0;
     const unsigned int nr_timeslots = 1; // timeslot for a-term
     const unsigned int subgrid_size = 32;
     const unsigned int kernel_size = 13;
@@ -76,7 +80,9 @@ int main (int argc, char *argv[]) {
     unsigned int grid_size = 8192;
     float image_size = 0.083367;
     float cell_size = image_size / grid_size;
-
+    std::clog << "grid_size = " << grid_size << std::endl;
+    std::clog << "image_size = " << image_size << std::endl;
+    std::clog << "cell_size = " << cell_size << std::endl;
     std::clog << ">>> Initialize IDG data structures" << std::endl;
     idg::proxy::cuda::Generic proxy;
 
@@ -100,7 +106,7 @@ int main (int argc, char *argv[]) {
     auto grid = proxy.allocate_grid(1, nr_correlations, grid_size, grid_size);
     proxy.set_grid(grid);
 
-    auto start = std::chrono::high_resolution_clock::now();
+    std::chrono::_V2::system_clock::time_point start = std::chrono::high_resolution_clock::now();
     std::chrono::_V2::system_clock::time_point stop;
     std::chrono::seconds duration;
 

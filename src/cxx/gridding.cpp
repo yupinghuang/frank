@@ -129,24 +129,25 @@ int main (int argc, char *argv[]) {
      * casacore doesn't seem to like it within omp parallel.
     **/
 
-    const casacore::Array<std::complex<float>> rows = data_column.getColumn();
+    // casacore::Array<std::complex<float>> rows(casacore::IPosition(3, 4, nr_channels, data_column.nrow()));
+    casacore::Array<std::complex<float>> rows = data_column.getColumn();
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::seconds>(stop - start);
     start = std::chrono::high_resolution_clock::now();
     std::clog << "Done reading measurement set in " << duration.count() << "s" << std::endl;
 
     // TODO use rows::const_iterator?
-    #pragma omp parallel for default(none) shared(visibilities, nr_channels)
+    #pragma omp parallel for default(none) shared(visibilities, nr_channels, rows)
     for (unsigned int bl=0; bl < nr_baselines; ++bl) {
         for (unsigned int t=0; t < nr_timesteps; ++t) {
             // transpose the other things?
             for (unsigned int chan=0; chan < nr_channels; ++chan) {
                 unsigned row_nr = bl + t * nr_baselines;
                 idg::Matrix2x2<std::complex<float>> vis = {
-                        rows(casacore::IPosition(3, chan, 0, row_nr)),
-                        rows(casacore::IPosition(3, chan, 1, row_nr)),
-                        rows(casacore::IPosition(3, chan, 2, row_nr)),
-                        rows(casacore::IPosition(3, chan, 3, row_nr))};
+                        rows(casacore::IPosition(3, 0, chan, row_nr)),
+                        rows(casacore::IPosition(3, 1, chan, row_nr)),
+                        rows(casacore::IPosition(3, 2, chan, row_nr)),
+                        rows(casacore::IPosition(3, 3, chan, row_nr))};
                 visibilities(bl, t, chan) = vis;
             }
         }

@@ -83,6 +83,7 @@ int main (int argc, char *argv[]) {
     std::clog << "grid_size = " << grid_size << std::endl;
     std::clog << "image_size = " << image_size << std::endl;
     std::clog << "cell_size = " << cell_size << std::endl;
+
     std::clog << ">>> Initialize IDG data structures" << std::endl;
     idg::proxy::cuda::Generic proxy;
 
@@ -125,6 +126,7 @@ int main (int argc, char *argv[]) {
     start = std::chrono::high_resolution_clock::now();
     std::clog << "Done reading measurement set in " << duration.count() << "s" << std::endl;
 
+    // TODO use rows::const_iterator?
     #pragma omp parallel for default(none) shared(visibilities, nr_channels)
     for (unsigned int bl=0; bl < nr_baselines; ++bl) {
         for (unsigned int t=0; t < nr_timesteps; ++t) {

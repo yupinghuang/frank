@@ -17,6 +17,7 @@
 #include <limits>
 #include <stdexcept>
 #include <chrono>
+#include <assert.h>
 
 #include <omp.h>
 
@@ -70,7 +71,7 @@ int main (int argc, char *argv[]) {
     std::clog << "nr_channels = " << nr_channels << std::endl;
     std::clog << "freqs.nrow() = " << freqs.nrow() << std::endl;
     std::clog << "freqs row 0 shape = " << freqs.shape(0) << std::endl;
-    return 0;
+    
     const unsigned int nr_timeslots = 1; // timeslot for a-term
     const unsigned int subgrid_size = 32;
     const unsigned int kernel_size = 13;
@@ -107,6 +108,14 @@ int main (int argc, char *argv[]) {
     auto grid = proxy.allocate_grid(1, nr_correlations, grid_size, grid_size);
     proxy.set_grid(grid);
 
+    std::clog << "Reading baseline and frequencies data from measurement set." << std::endl;
+    casacore::Array<double> src_freqs = freqs(0);
+    assert(src_freqs.size() == nr_channels);
+    for (unsigned int i = 0; i < nr_channels; ++i)
+        frequencies(i) = float(src_freqs(casacore::IPosition(1, i)));
+    std::clog << uvw_column.nrow() << std::endl;
+    std::clog << uvw_column.shape(0) << std::endl;
+
     std::chrono::_V2::system_clock::time_point start = std::chrono::high_resolution_clock::now();
     std::chrono::_V2::system_clock::time_point stop;
     std::chrono::seconds duration;
@@ -130,13 +139,14 @@ int main (int argc, char *argv[]) {
     #pragma omp parallel for default(none) shared(visibilities, nr_channels)
     for (unsigned int bl=0; bl < nr_baselines; ++bl) {
         for (unsigned int t=0; t < nr_timesteps; ++t) {
+            // transpose the other things?
             for (unsigned int chan=0; chan < nr_channels; ++chan) {
                 unsigned row_nr = bl + t * nr_baselines;
-                casacore::IPosition xx(3, chan, 0, row_nr);
-                casacore::IPosition xy(3, chan, 1, row_nr);
-                casacore::IPosition yx(3, chan, 2, row_nr);
-                casacore::IPosition yy(3, chan, 3, row_nr);
-                idg::Matrix2x2<std::complex<float>> vis = {rows(xx), rows(xy), rows(yx), rows(yy)};
+                idg::Matrix2x2<std::complex<float>> vis = {
+                        rows(casacore::IPosition(3, chan, 0, row_nr)),
+                        rows(casacore::IPosition(3, chan, 1, row_nr)),
+                        rows(casacore::IPosition(3, chan, 2, row_nr)),
+                        rows(casacore::IPosition(3, chan, 3, row_nr))};
                 visibilities(bl, t, chan) = vis;
             }
         }
@@ -144,7 +154,7 @@ int main (int argc, char *argv[]) {
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::seconds>(stop - start);
     std::clog << "Reordered visibilities in " << duration.count() << "s" << std::endl;
-
+    return 0;
     // not using w_step
     proxy.init_cache(subgrid_size, cell_size, 0.0, shift);
 

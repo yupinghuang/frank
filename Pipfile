@@ -15,6 +15,7 @@ install = "*"
 xarray = {extras = ["complete"], version = "*"}
 dask-ms = {extras = ["xarray"], version = "*"}
 ipympl = "*"
+codex-africanus = {extras = ["complete-cuda"], version = "*"}
 
 [dev-packages]
 

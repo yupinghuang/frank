@@ -16,6 +16,7 @@ xarray = {extras = ["complete"], version = "*"}
 dask-ms = {extras = ["xarray"], version = "*"}
 ipympl = "*"
 codex-africanus = {extras = ["complete-cuda"], version = "*"}
+jupyter-bokeh = "*"
 
 [dev-packages]
 

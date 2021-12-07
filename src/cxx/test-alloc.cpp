@@ -54,10 +54,8 @@ int main (int argc, char *argv[]) {
     }
 
     std::clog << "Iterate through idg:Array3D<Matrix2x2> with a pointer" << std::endl;
-    // stuck: Matrix2x2 is a struct.
     complex<float> *visibilities_begin_p = &(visibilities(0, 0, 0).xx);
     {
-        std::cout << visibilities.size() << std::endl;
         auto end_p = visibilities_begin_p + visibilities.size() * 4;
         for (complex<float> *p = visibilities_begin_p; p < end_p; ++p)
         {

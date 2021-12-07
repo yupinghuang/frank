@@ -39,7 +39,7 @@ void get_metadata(const string &ms_path, float &integration_time,
     assert(nr_rows % nr_baselines == 0);
     nr_timesteps = nr_rows / nr_baselines;
 
-    integration_time = 1.5f;
+    integration_time = 6e1;
 
     casacore::ROScalarColumn<int> numChanCol(ms.spectralWindow(), casacore::MSSpectralWindow::columnName(
                       casacore::MSSpectralWindowEnums::NUM_CHAN));
@@ -108,7 +108,7 @@ void get_data(const string &ms_path, const unsigned int nr_channels,
     duration = std::chrono::duration_cast<std::chrono::seconds>(stop - start);
     std::clog << "Done reading measurement set in " << duration.count() << "s" << std::endl;
     start = std::chrono::high_resolution_clock::now();
-
+    // TODO use one of the specialization of Array to iterate.
     #pragma omp parallel for default(none) shared(visibilities, uvw_column, uvw)
     for (unsigned int t=0; t < nr_timesteps; ++t) {
         for (unsigned int bl=0; bl < nr_baselines; ++bl) {
@@ -121,7 +121,6 @@ void get_data(const string &ms_path, const unsigned int nr_channels,
             uvw(bl, t) = idg_uvw;
             
             for (unsigned int chan=0; chan < nr_channels; ++chan) {
-                unsigned row_nr = bl + t * nr_baselines;
                 idg::Matrix2x2<complex<float>> vis = {
                         data_rows(IPosition(3, 0, chan, row_i)),
                         data_rows(IPosition(3, 1, chan, row_i)),
@@ -137,7 +136,7 @@ void get_data(const string &ms_path, const unsigned int nr_channels,
 }
 
 int main (int argc, char *argv[]) {
-    string ms_path = "/fastpool/data/20210226M-2GHz-1chan-600int.ms";
+    string ms_path = "/fastpool/data/W-10int-200chan.ms";
 
     // TODO: a struct?
     unsigned int nr_correlations;
@@ -162,14 +161,17 @@ int main (int argc, char *argv[]) {
     std::clog << ">>> Initialize IDG proxy." << std::endl;
     idg::proxy::cuda::Generic proxy;
 
+    std::clog << ">>> Allocating metadata arrays" << std::endl;
     idg::Array1D<float> frequencies = proxy.allocate_array1d<float>(nr_channels);
     idg::Array1D<std::pair<unsigned int, unsigned int>> baselines =
         proxy.allocate_array1d <std::pair<unsigned int, unsigned int>>(nr_baselines);
     idg::Array2D<idg::UVW<float>> uvw =
         proxy.allocate_array2d<idg::UVW<float>>(nr_baselines, nr_timesteps);
+    std::clog << ">>> Allocating vis" << std::endl;
     idg::Array3D<idg::Visibility<complex<float>>> visibilities =
             proxy.allocate_array3d<idg::Visibility<complex<float>>>(nr_baselines, nr_timesteps, nr_channels);
 
+    std::clog << ">>> Reading data" << std::endl;
     get_data(ms_path, nr_channels, nr_baselines, nr_timesteps, uvw, frequencies, baselines, visibilities);
 
     // A-terms
@@ -189,6 +191,7 @@ int main (int argc, char *argv[]) {
     std::shared_ptr<idg::Grid> grid = proxy.allocate_grid(1, nr_correlations, grid_size, grid_size);
     proxy.set_grid(grid);
     // no w-tiling, i.e. not using w_step
+
     proxy.init_cache(subgrid_size, cell_size, 0.0, shift);
 
     // Create plan

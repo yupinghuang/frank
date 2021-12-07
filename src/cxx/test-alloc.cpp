@@ -66,6 +66,7 @@ int main (int argc, char *argv[]) {
     casacore::Array<complex<float>> cc_data_shared(IPosition(4, 4, nr_baselines, nr_timesteps, nr_channels),
     visibilities_begin_p,
     casacore::StorageInitPolicy::SHARE,
+    // This is probably the wrong allocator, but since casacore won't free the memory this is kinda fine...
     std::allocator<complex<float>>());
 
     std::clog << "Iterator iterate for casacore Array sharing the IDG allocated memory: " << std::endl;

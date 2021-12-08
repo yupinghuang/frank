@@ -18,8 +18,11 @@
 #include <stdexcept>
 #include <chrono>
 #include <assert.h>
+#include <vector>
 
 #include <omp.h>
+
+#define SPEED_OF_LIGHT 299792458.0
 
 using std::complex; using std::string; using casacore::IPosition;
 
@@ -39,13 +42,12 @@ void get_metadata(const string &ms_path, float &integration_time,
     assert(nr_rows % nr_baselines == 0);
     nr_timesteps = nr_rows / nr_baselines;
 
-    integration_time = 6e1;
+    casacore::ROScalarColumn<double> exposureCol(ms, casacore::MS::columnName(casacore::MSMainEnums::EXPOSURE));
+    integration_time = static_cast<float>(exposureCol.get(0));
 
     casacore::ROScalarColumn<int> numChanCol(ms.spectralWindow(), casacore::MSSpectralWindow::columnName(
                       casacore::MSSpectralWindowEnums::NUM_CHAN));
-    int nr_channels_tmp;
-    numChanCol.get(0, nr_channels_tmp);
-    nr_channels = nr_channels_tmp;
+    nr_channels = static_cast<unsigned int>(numChanCol.get(0));
     std::clog << "integration_time = " << integration_time << std::endl;
     std::clog << "nr_rows = " << nr_rows << std::endl;
     std::clog << "nr_stations = " << nr_stations << std::endl;
@@ -135,6 +137,12 @@ void get_data(const string &ms_path, const unsigned int nr_channels,
     std::clog << "Reordered visibilities in " << duration.count() << "s" << std::endl;
 }
 
+float compute_image_size(unsigned long grid_size, float end_frequency) {
+    const float grid_padding = 1.20;
+    grid_size /= (2 * grid_padding);
+    float max_uv = 15392.2;
+    return grid_size / max_uv * (SPEED_OF_LIGHT / end_frequency);
+}
 int main (int argc, char *argv[]) {
     string ms_path = "/fastpool/data/W-10int-200chan.ms";
 
@@ -149,15 +157,6 @@ int main (int argc, char *argv[]) {
     get_metadata(ms_path, integration_time, nr_rows, nr_stations,
                  nr_baselines, nr_timesteps, nr_channels, nr_correlations);
     
-
-    // hard-coding for now
-    unsigned int grid_size = 8192;
-    float image_size = 0.083367;
-    float cell_size = image_size / grid_size;
-    std::clog << "grid_size = " << grid_size << std::endl;
-    std::clog << "image_size = " << image_size << std::endl;
-    std::clog << "cell_size = " << cell_size << std::endl;
-
     std::clog << ">>> Initialize IDG proxy." << std::endl;
     idg::proxy::cuda::Generic proxy;
 
@@ -173,6 +172,16 @@ int main (int argc, char *argv[]) {
 
     std::clog << ">>> Reading data" << std::endl;
     get_data(ms_path, nr_channels, nr_baselines, nr_timesteps, uvw, frequencies, baselines, visibilities);
+
+    float end_frequency = frequencies(frequencies.size() - 1);
+    std::clog << "end frequency = " << end_frequency << std::endl;
+    // hard-coding for now
+    unsigned int grid_size = 8192;
+    float image_size = compute_image_size(grid_size, end_frequency);
+    float cell_size = image_size / grid_size;
+    std::clog << "grid_size = " << grid_size << std::endl;
+    std::clog << "image_size = " << image_size << std::endl;
+    std::clog << "cell_size = " << cell_size << std::endl;
 
     // A-terms
     const unsigned int nr_timeslots = 1; // timeslot for a-term

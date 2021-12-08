@@ -67,23 +67,24 @@ void reorderData(const unsigned int nr_timesteps,
                  const casacore::Array<complex<float>> &data_rows,
                  idg::Array2D<idg::UVW<float>> &uvw,
                  idg::Array3D<idg::Visibility<complex<float>>> &visibilities) {
-// TODO use one of the specialization of Array to iterate.
-#pragma omp parallel for default(none) shared(visibilities, uvw, uvw_rows, data_rows)
+  const casacore::Vector<double> uvw_vec = uvw_rows.tovector();
+  const casacore::Vector<complex<float>> data_vec = data_rows.tovector();
+#pragma omp parallel for default(none) shared(visibilities, uvw)
   for (unsigned int t = 0; t < nr_timesteps; ++t) {
     for (unsigned int bl = 0; bl < nr_baselines; ++bl) {
       unsigned int row_i = bl + t * nr_baselines;
 
-      idg::UVW<float> idg_uvw = {float(uvw_rows(IPosition(2, 0, row_i))),
-                                 float(uvw_rows(IPosition(2, 1, row_i))),
-                                 float(uvw_rows(IPosition(2, 2, row_i)))};
+      idg::UVW<float> idg_uvw = {float(uvw_vec(3 * row_i + 0)),
+                                 float(uvw_vec(3 * row_i + 1)),
+                                 float(uvw_vec(3 * row_i + 2))};
       uvw(bl, t) = idg_uvw;
 
       for (unsigned int chan = 0; chan < nr_channels; ++chan) {
         idg::Matrix2x2<complex<float>> vis = {
-            data_rows(IPosition(3, 0, chan, row_i)),
-            data_rows(IPosition(3, 1, chan, row_i)),
-            data_rows(IPosition(3, 2, chan, row_i)),
-            data_rows(IPosition(3, 3, chan, row_i))};
+            data_vec(4 * chan * row_i + 0),
+            data_vec(4 * chan * row_i + 1),
+            data_vec(4 * chan * row_i + 2),
+            data_vec(4 * chan * row_i + 3)};
         visibilities(bl, t, chan) = vis;
       }
     }

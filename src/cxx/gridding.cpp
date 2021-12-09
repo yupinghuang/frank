@@ -66,7 +66,7 @@ void reorderData(const unsigned int nr_timesteps,
                  const casacore::Array<double> &uvw_rows,
                  const casacore::Array<complex<float>> &data_rows,
                  idg::Array2D<idg::UVW<float>> &uvw,
-                 idg::Array3D<idg::Visibility<complex<float>>> &visibilities) {
+                 idg::Array4D<complex<float>> &visibilities) {
 // TODO use one of the specialization of Array to iterate.
 #pragma omp parallel for default(none) shared(visibilities, uvw, uvw_rows, data_rows)
   for (unsigned int t = 0; t < nr_timesteps; ++t) {
@@ -79,12 +79,10 @@ void reorderData(const unsigned int nr_timesteps,
       uvw(bl, t) = idg_uvw;
 
       for (unsigned int chan = 0; chan < nr_channels; ++chan) {
-        idg::Matrix2x2<complex<float>> vis = {
-            data_rows(IPosition(3, 0, chan, row_i)),
-            data_rows(IPosition(3, 1, chan, row_i)),
-            data_rows(IPosition(3, 2, chan, row_i)),
-            data_rows(IPosition(3, 3, chan, row_i))};
-        visibilities(bl, t, chan) = vis;
+        visibilities(bl, t, chan, 0) = data_rows(IPosition(3, 0, chan, row_i));
+        visibilities(bl, t, chan, 1) = data_rows(IPosition(3, 1, chan, row_i));
+        visibilities(bl, t, chan, 2) = data_rows(IPosition(3, 2, chan, row_i));
+        visibilities(bl, t, chan, 3) = data_rows(IPosition(3, 3, chan, row_i));
       }
     }
   }
@@ -95,7 +93,7 @@ void getData(const string &ms_path, const unsigned int nr_channels,
              idg::Array2D<idg::UVW<float>> &uvw,
              idg::Array1D<float> &frequencies,
              idg::Array1D<std::pair<unsigned int, unsigned int>> &baselines,
-             idg::Array3D<idg::Visibility<complex<float>>> &visibilities) {
+             idg::Array4D<complex<float>> &visibilities) {
   casacore::MeasurementSet ms(ms_path);
   casacore::ROArrayColumn<casacore::Complex> data_column(
       ms, casacore::MS::columnName(casacore::MSMainEnums::DATA));
@@ -162,6 +160,7 @@ float computeImageSize(unsigned long grid_size, float end_frequency) {
   grid_size /= (2 * grid_padding);
   return grid_size / MAX_BL_M * (SPEED_OF_LIGHT / end_frequency);
 }
+
 int main(int argc, char *argv[]) {
   string ms_path = "/fastpool/data/W-10int-200chan.ms";
 
@@ -187,9 +186,8 @@ int main(int argc, char *argv[]) {
   idg::Array2D<idg::UVW<float>> uvw =
       proxy.allocate_array2d<idg::UVW<float>>(nr_baselines, nr_timesteps);
   std::clog << ">>> Allocating vis" << std::endl;
-  idg::Array3D<idg::Visibility<complex<float>>> visibilities =
-      proxy.allocate_array3d<idg::Visibility<complex<float>>>(
-          nr_baselines, nr_timesteps, nr_channels);
+  auto visibilities = proxy.allocate_array4d<complex<float>>(
+      nr_baselines, nr_timesteps, nr_channels, nr_correlations);
 
   std::clog << ">>> Reading data" << std::endl;
   getData(ms_path, nr_channels, nr_baselines, nr_timesteps, uvw, frequencies,

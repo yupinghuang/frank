@@ -21,8 +21,8 @@
 #include "idg-common.h"
 #include "idg-util.h"  // Don't need if not using the test Data class
 
-const float SPEED_OF_LIGHT = 299792458.0;
-const float MAX_BL_M = 15392.2;
+constexpr float SPEED_OF_LIGHT = 299792458.0;
+constexpr float MAX_BL_M = 15392.2;
 
 using casacore::IPosition;
 using std::complex;
@@ -68,21 +68,26 @@ void reorderData(const unsigned int nr_timesteps,
                  idg::Array2D<idg::UVW<float>> &uvw,
                  idg::Array4D<complex<float>> &visibilities) {
 // TODO use one of the specialization of Array to iterate.
-#pragma omp parallel for default(none) shared(visibilities, uvw, uvw_rows, data_rows)
+  #pragma omp parallel for default(none) shared(visibilities, uvw, uvw_rows, data_rows)
   for (unsigned int t = 0; t < nr_timesteps; ++t) {
     for (unsigned int bl = 0; bl < nr_baselines; ++bl) {
       unsigned int row_i = bl + t * nr_baselines;
 
-      idg::UVW<float> idg_uvw = {float(uvw_rows(IPosition(2, 0, row_i))),
-                                 float(uvw_rows(IPosition(2, 1, row_i))),
-                                 float(uvw_rows(IPosition(2, 2, row_i)))};
-      uvw(bl, t) = idg_uvw;
-
+      const casacore::Vector<double> uvw_row =
+          uvw_rows(casacore::Slicer(IPosition(2, 0, row_i), IPosition(2, 3, 1)))
+              .tovector();
+      uvw(bl, t) = {static_cast<float>(uvw_row(0)),
+                    static_cast<float>(uvw_row(1)),
+                    static_cast<float>(uvw_row(2))};
       for (unsigned int chan = 0; chan < nr_channels; ++chan) {
-        visibilities(bl, t, chan, 0) = data_rows(IPosition(3, 0, chan, row_i));
-        visibilities(bl, t, chan, 1) = data_rows(IPosition(3, 1, chan, row_i));
-        visibilities(bl, t, chan, 2) = data_rows(IPosition(3, 2, chan, row_i));
-        visibilities(bl, t, chan, 3) = data_rows(IPosition(3, 3, chan, row_i));
+        const casacore::Vector<complex<float>> data_row =
+            data_rows(casacore::Slicer(IPosition(3, 0, chan, row_i),
+                                       IPosition(3, 4, 1, 1)))
+                .tovector();
+        visibilities(bl, t, chan, 0) = data_row(0);
+        visibilities(bl, t, chan, 1) = data_row(1);
+        visibilities(bl, t, chan, 2) = data_row(2);
+        visibilities(bl, t, chan, 3) = data_row(3);
       }
     }
   }
@@ -121,9 +126,8 @@ void getData(const string &ms_path, const unsigned int nr_channels,
   casacore::Vector<int> ant2_vec = ant2.getColumnRange(first_int_rows);
 #pragma omp parallel for default(none) shared(baselines, ant1_vec, ant2_vec)
   for (unsigned int i = 0; i < nr_baselines; ++i) {
-    std::pair<unsigned int, unsigned int> curr_pair = {ant1_vec(i),
-                                                       ant2_vec(i)};
-    baselines(i) = curr_pair;
+    baselines(i) = {static_cast<unsigned int>(ant1_vec(i)),
+                    static_cast<unsigned int>(ant2_vec(i))};
   }
 
   std::chrono::_V2::system_clock::time_point start =
@@ -179,11 +183,11 @@ int main(int argc, char *argv[]) {
   idg::proxy::cuda::Generic proxy;
 
   std::clog << ">>> Allocating metadata arrays" << std::endl;
-  idg::Array1D<float> frequencies = proxy.allocate_array1d<float>(nr_channels);
-  idg::Array1D<std::pair<unsigned int, unsigned int>> baselines =
+  auto frequencies = proxy.allocate_array1d<float>(nr_channels);
+  auto baselines =
       proxy.allocate_array1d<std::pair<unsigned int, unsigned int>>(
           nr_baselines);
-  idg::Array2D<idg::UVW<float>> uvw =
+  auto uvw =
       proxy.allocate_array2d<idg::UVW<float>>(nr_baselines, nr_timesteps);
   std::clog << ">>> Allocating vis" << std::endl;
   auto visibilities = proxy.allocate_array4d<complex<float>>(
@@ -204,8 +208,8 @@ int main(int argc, char *argv[]) {
 
   // A-terms
   const unsigned int nr_timeslots = 1;  // timeslot for a-term
-  const unsigned int subgrid_size = 32;
-  const unsigned int kernel_size = 13;
+  const unsigned int subgrid_size = 64;
+  const unsigned int kernel_size = 33;
   idg::Array4D<idg::Matrix2x2<complex<float>>> aterms = idg::get_example_aterms(
       proxy, nr_timeslots, nr_stations, subgrid_size, subgrid_size);
   idg::Array1D<unsigned int> aterms_offsets =
@@ -234,4 +238,9 @@ int main(int argc, char *argv[]) {
   proxy.gridding(*plan, frequencies, visibilities, uvw, baselines, aterms,
                  aterms_offsets, spread);
   proxy.get_final_grid();
+  for (unsigned int i=0; i < grid->get_x_dim(); ++i) {
+      for (unsigned int j=0; j < grid->get_y_dim(); ++j) {
+          std::clog<<(*grid)(0, 0, j, i)<<std::endl;
+      }
+  }
 }

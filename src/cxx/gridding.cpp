@@ -20,6 +20,7 @@
 #include "common/Proxy.h"
 #include "idg-common.h"
 #include "idg-util.h"  // Don't need if not using the test Data class
+#include "npy.hpp"
 
 const float SPEED_OF_LIGHT = 299792458.0;
 const float MAX_BL_M = 15392.2;
@@ -162,7 +163,7 @@ float computeImageSize(unsigned long grid_size, float end_frequency) {
 }
 
 int main(int argc, char *argv[]) {
-  string ms_path = "/fastpool/data/W-10int-200chan.ms";
+  string ms_path = "/fastpool/data/20210226M-1350MHz-1chan-1int-ground-truth.ms";
 
   // TODO: a struct?
   unsigned int nr_correlations;
@@ -233,5 +234,20 @@ int main(int argc, char *argv[]) {
   std::clog << ">>> Run gridding" << std::endl;
   proxy.gridding(*plan, frequencies, visibilities, uvw, baselines, aterms,
                  aterms_offsets, spread);
-  proxy.get_final_grid();
+  auto g1 = proxy.get_final_grid();
+  std::clog << "Run FFT" << std::endl;
+  proxy.transform(idg::FourierDomainToImageDomain);
+  auto image_corr = proxy.get_final_grid();
+  auto image_iquv = proxy.allocate_array3d<float>(4, grid_size, grid_size);
+  for (unsigned int i=0; i< grid_size; ++i) {
+      for (unsigned int j=0; j<grid_size; ++j) {
+          image_iquv(0, i, j) = 0.5 * ((*image_corr)(0, 0, i, j).real() + (*image_corr)(0, 3, i, j).real());
+          image_iquv(1, i, j) = 0.5 * ((*image_corr)(0, 0, i, j).real() - (*image_corr)(0, 3, i, j).real());
+          image_iquv(2, i, j) = 0.5 * ((*image_corr)(0, 1, i, j).real() - (*image_corr)(0, 2, i, j).real());
+          image_iquv(3, i, j) = 0.5 * (-(*image_corr)(0, 1, i, j).imag() + (*image_corr)(0, 2, i, j).imag());
+      }
+  }
+  const long unsigned imshape[] = {4, grid_size, grid_size};
+  auto data = std::vector<float>(image_iquv.data(), image_iquv.data() + image_iquv.size());
+  npy::SaveArrayAsNumpy("image.npy", false, 4, imshape, data);
 }

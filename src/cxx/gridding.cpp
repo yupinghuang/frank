@@ -195,13 +195,13 @@ int main(int argc, char *argv[]) {
           baselines, visibilities);
   float end_frequency = frequencies(frequencies.size() - 1);
   std::clog << "end frequency = " << end_frequency << std::endl;
-  // hard-coding for now
+
   unsigned int grid_size = 8192;
   float image_size = computeImageSize(grid_size, end_frequency);
   float cell_size = image_size / grid_size;
   std::clog << "grid_size = " << grid_size << std::endl;
-  std::clog << "image_size = " << image_size << std::endl;
-  std::clog << "cell_size = " << cell_size << std::endl;
+  std::clog << "image_size = " << image_size << " (radians?)" << std::endl;
+  std::clog << "pixel_size (idg's cell_size) = " << cell_size << " (radians?)" << std::endl;
 
   // A-terms
   const unsigned int nr_timeslots = 1;  // timeslot for a-term
@@ -234,20 +234,30 @@ int main(int argc, char *argv[]) {
   std::clog << ">>> Run gridding" << std::endl;
   proxy.gridding(*plan, frequencies, visibilities, uvw, baselines, aterms,
                  aterms_offsets, spread);
-  auto g1 = proxy.get_final_grid();
+  proxy.get_final_grid();
   std::clog << "Run FFT" << std::endl;
   proxy.transform(idg::FourierDomainToImageDomain);
   auto image_corr = proxy.get_final_grid();
-  auto image_iquv = proxy.allocate_array3d<float>(4, grid_size, grid_size);
-  for (unsigned int i=0; i< grid_size; ++i) {
-      for (unsigned int j=0; j<grid_size; ++j) {
-          image_iquv(0, i, j) = 0.5 * ((*image_corr)(0, 0, i, j).real() + (*image_corr)(0, 3, i, j).real());
-          image_iquv(1, i, j) = 0.5 * ((*image_corr)(0, 0, i, j).real() - (*image_corr)(0, 3, i, j).real());
-          image_iquv(2, i, j) = 0.5 * ((*image_corr)(0, 1, i, j).real() - (*image_corr)(0, 2, i, j).real());
-          image_iquv(3, i, j) = 0.5 * (-(*image_corr)(0, 1, i, j).imag() + (*image_corr)(0, 2, i, j).imag());
-      }
+  auto image_iquv = proxy.allocate_array3d<double>(4, grid_size, grid_size);
+  for (unsigned int i = 0; i < grid_size; ++i) {
+    for (unsigned int j = 0; j < grid_size; ++j) {
+      image_iquv(0, i, j) =
+          static_cast<double>(0.5 * ((*image_corr)(0, 0, i, j).real() +
+                                     (*image_corr)(0, 3, i, j).real()));
+      image_iquv(1, i, j) =
+          static_cast<double>(0.5 * ((*image_corr)(0, 0, i, j).real() -
+                                     (*image_corr)(0, 3, i, j).real()));
+      image_iquv(2, i, j) =
+          static_cast<double>(0.5 * ((*image_corr)(0, 1, i, j).real() -
+                                     (*image_corr)(0, 2, i, j).real()));
+      image_iquv(3, i, j) =
+          static_cast<double>(0.5 * (-(*image_corr)(0, 1, i, j).imag() +
+                                     (*image_corr)(0, 2, i, j).imag()));
+    }
   }
   const long unsigned imshape[] = {4, grid_size, grid_size};
-  auto data = std::vector<float>(image_iquv.data(), image_iquv.data() + image_iquv.size());
-  npy::SaveArrayAsNumpy("image.npy", false, 4, imshape, data);
+  npy::SaveArrayAsNumpy(
+      "image.npy", false, 3, imshape,
+      std::vector<double>(image_iquv.data(),
+                          image_iquv.data() + image_iquv.size()));
 }

@@ -17,9 +17,12 @@ dask-ms = {extras = ["xarray"], version = "*"}
 ipympl = "*"
 codex-africanus = {extras = ["complete-cuda"], version = "*"}
 jupyter-bokeh = "*"
-h5parm = "*"
+h5parm = {editable = true, path = "./../h5parm"}
 tables = "*"
 scikit-image = "*"
+casatools = "*"
+casatasks = "*"
+casadata = "*"
 
 [dev-packages]
 scikit-learn = "*"

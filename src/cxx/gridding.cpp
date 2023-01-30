@@ -163,7 +163,7 @@ float computeImageSize(unsigned long grid_size, float end_frequency) {
 }
 
 int main(int argc, char *argv[]) {
-  string ms_path = "/fastpool/data/20210226M-1350MHz-1chan-1int-ground-truth.ms";
+  string ms_path = "/fastpool/data/W-snapshot-64chan-5deg.ms";
 
   // TODO: a struct?
   unsigned int nr_correlations;

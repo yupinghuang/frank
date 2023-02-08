@@ -1,0 +1,7 @@
+[tool.setuptools.packages]
+find = {}
+
+[project]
+name = "frank"
+version = "0.0.1"
+dependencies = []

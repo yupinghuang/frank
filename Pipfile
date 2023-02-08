@@ -23,6 +23,7 @@ scikit-image = "*"
 casatools = "*"
 casatasks = "*"
 casadata = "*"
+frank = {editable = true, path = "."}
 
 [dev-packages]
 scikit-learn = "*"

@@ -6,8 +6,8 @@ def casa_deconvolve(input_fits, output_fits, psf_fits):
     prefix = input_fits.rstrip('.fits')
     importfits(fitsimage=input_fits, imagename=prefix + '.residual', overwrite=True)
     importfits(fitsimage=psf_fits, imagename=prefix + '.psf', overwrite=True)
-    deconvolve(imagename=prefix, deconvolver="clark",
-        niter=2000, gain=0.2)
+    deconvolve(imagename=prefix, deconvolver="multiscale",
+        niter=5000000, gain=0.2,smallscalebias=0.5, interactive=True, scales=[0,3,9,27])
     exportfits(imagename=prefix + '.image', fitsimage=output_fits, overwrite=True)
 
 if __name__ == '__main__':

@@ -16,7 +16,7 @@ xarray = {extras = ["complete"], version = "*"}
 dask-ms = {extras = ["xarray"], version = "*"}
 ipympl = "*"
 codex-africanus = {extras = ["complete-cuda"], version = "*"}
-jupyter-bokeh = "*"
+jupyter-bokeh = "<3"
 h5parm = {editable = true, path = "./../h5parm"}
 tables = "*"
 scikit-image = "*"
@@ -26,6 +26,7 @@ casadata = "*"
 frank = {editable = true, path = "."}
 casaviewer = "*"
 protobuf = "==3.20"
+bokeh = "<3"
 
 [dev-packages]
 scikit-learn = "*"

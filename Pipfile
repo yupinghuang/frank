@@ -4,7 +4,6 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-nifty-gridder = {editable = true, path = "./../nifty_gridder"}
 python-casacore = "*"
 numpy = "*"
 ipykernel = "*"

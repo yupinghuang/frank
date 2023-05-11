@@ -24,9 +24,10 @@ casatasks = "*"
 casadata = "*"
 frank = {editable = true, path = "."}
 casaviewer = "*"
-protobuf = "==3.20"
-bokeh = "<3"
+protobuf = "*"
+bokeh = "*"
 scikit-learn = "*"
+dask = {extras = ["complete"], version = "*"}
 
 [requires]
 python_version = "3.8"

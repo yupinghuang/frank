@@ -53,10 +53,9 @@ if __name__=='__main__':
     phase_grid, phase_gains = h5parm_to_phases('/safepool/yuping/sim_dsa2000W_1000m_grid_dawn_30.0_1.5.h5')
     freq_arr = np.arange(64) * 134e3 + 0.7e9
     # need shape 20, 2048, 64, 2, 2
-    # phase_gains2 = np.exp(-1j * (phase_gains[:,0,:-1].T)[:,:, None, None, None] *
-    #            (0.7e9/freq_arr)[None, None, :, None, None]) * np.identity(2)
     phase_gains2 = np.exp(-1j * (phase_gains[:,0,:-1].T)[:,:, None, None, None] *
                 (0.7e9/freq_arr)[None, None, :, None, None]) * np.identity(2)
     np.save('/fastpool/data/W-64chan-30s.npy', phase_gains2)
     client = Client(processes=False, local_directory='/fastpool/yuping/tmp')
-    dftsource.point_src_with_gain(phase_gains2, '/fastpool/data/W-64chan-30s.ms', rms=9.88007)
+    dftsource.point_src_with_gain('/fastpool/data/W-64chan-30s.ms', np.array([[0,0]]),
+                                  phase_gains2, rms=9.88007)

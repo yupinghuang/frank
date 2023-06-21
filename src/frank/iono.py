@@ -42,7 +42,7 @@ def h5parm_to_phases(fn):
     ref_ind = find_center(antennas_grid, times)
     frame = ENU(location=antennas_grid[ref_ind].earth_location, obstime=times[0])
     antennas_grid_enu = ITRS(*antennas_grid.cartesian.xyz, obstime=times[0]).transform_to(frame)
-    print(phase_grid.shape)
+    print('phase grid shape: ', phase_grid.shape)
     if phase_grid.shape[1] == len(actual_ants):
         phase_gain = phase_grid
     else:
@@ -54,7 +54,6 @@ def h5parm_to_phases(fn):
 
 if __name__=='__main__':
     phase_grid, phase_gains = h5parm_to_phases('/safepool/yuping/sim_dsa2000W_1000m_grid_dawn_30.0_1.5.h5')
-    """
     freq_arr = np.arange(64) * 134e3 + 0.7e9
     # need shape 20, 2048, 64, 2, 2
     phase_gains2 = np.exp(-1j * (phase_gains[:,0,:-1].T)[:,:, None, None, None] *
@@ -63,4 +62,3 @@ if __name__=='__main__':
     client = Client(processes=False, local_directory='/fastpool/yuping/tmp')
     dftsource.point_src_with_gain('/fastpool/data/W-64chan-30s.ms', np.array([[0,0]]),
                                   phase_gains2, rms=9.88007)
-                                  """

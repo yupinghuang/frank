@@ -8,7 +8,6 @@ from africanus.model.coherency.dask import convert
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 from dask.diagnostics import ProgressBar, Profiler
-import dask
 import dask.array as da
 from dask.graph_manipulation import bind
 from daskms import xds_from_ms, xds_from_table, xds_to_table
@@ -25,6 +24,7 @@ def point_src_with_gain(ms, src_lm, di_gain=None, dd_gain=None, rms=None, client
     writes = []
     chan_chunks = 64
     gain2 = None
+    dd_gain2 = None
     if di_gain is not None:
         gain2 = da.from_array(di_gain.reshape(di_gain.shape[0],
                                             di_gain.shape[1],
@@ -47,7 +47,6 @@ def point_src_with_gain(ms, src_lm, di_gain=None, dd_gain=None, rms=None, client
         n_rows = xds.dims["row"]
         xds = xds.chunk({"row": n_rows // 20})
         src_coh = phase_delay_diag(src_lm, xds.UVW.data, freq_arr)
-        print(src_coh.shape)
         time_idx = xds.TIME.data.map_blocks(lambda a: np.unique(a, return_inverse=True)[1], dtype=np.int32)
         vis = predict_vis(time_index=time_idx,
                           antenna1=da.broadcast_to(xds.ANTENNA1, xds.ANTENNA2.shape),
@@ -59,7 +58,6 @@ def point_src_with_gain(ms, src_lm, di_gain=None, dd_gain=None, rms=None, client
                           dde2_jones=dd_gain2)
         if rms:
             vis = da.map_blocks(add_noise, vis, rms, seq, dtype=np.complex64, meta=np.array((), dtype=np.complex64))
-        print(vis.chunks)
         # Assign visibilities to DATA array on the dataset
         xds = xds.assign(DATA=(("row", "chan", "corr"), vis))
         write = xds_to_table(xds, ms, ['DATA'])
@@ -71,7 +69,7 @@ def add_noise(blk, rms, seq):
     rng = np.random.default_rng(seq.spawn(1)[0].generate_state(1))
     return blk + rng.normal(loc=0., scale=rms, size=blk.shape) + 1j * rng.normal(loc=0., scale=rms, size=blk.shape)
 
-def phase_delay_diag(lm, uvw, frequency, convention="fourier"):
+def phase_delay_diag(lm, uvw, frequency, convention="casa"):
     """ Dask wrapper for phase_delay function """
     return da.core.blockwise(
         _phase_delay_wrap_diag,
